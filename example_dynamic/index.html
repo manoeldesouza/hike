@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+
+  <head>
+    <title>summit - dynamic web page example </title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.4.1/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://colorlib.com/polygon/build/css/custom.min.css">
+  </head>
+
+  <body>
+    <br>
+    <div class="container-fluid">
+      <div class="row">
+
+        <div class="col-sm-6" id="dynamic-content">
+          <div class="card">
+            <div class="card-body">
+              This will be updated automatically with javascript
+              <pre><code>
+                <!-- [[ uptime_content ]] -->
+              </code></pre>
+            </div>
+          </div>
+        </div>
+
+        <div class="col-sm-6">
+          <div class="card">
+            <div class="card-body">
+              This will only be updated with page refresh
+              <pre><code>
+                <!-- [[ uptime_content ]] -->
+              </code></pre>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </body>
+
+<script>
+
+  <!-- #Stream connection -->
+    var myVar = setInterval(loadDoc, 1000);
+
+    function myTimer() {
+      if (document.getElementById("dynamic-content").innerHTML != '<object type="text/html" data="dynamic.html"></object>')
+        document.getElementById("dynamic-content").innerHTML = '<object type="text/html" data="dynamic.html"></object>';
+    }
+
+    $.get(' ', function(data) { alert(data); });
+
+    function loadDoc() {
+      var xhttp = new XMLHttpRequest();
+      xhttp.onreadystatechange = function() {
+        if (this.readyState == 4 && this.status == 200) {
+         document.getElementById("dynamic-content").innerHTML = this.responseText;
+        }
+      };
+      xhttp.open("GET", "dynamic.html", true);
+      xhttp.send();
+    }
+  <!-- #Stream connection -->
+
+</script>
+
+
+</html>
