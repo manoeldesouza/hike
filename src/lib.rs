@@ -1,3 +1,5 @@
+//! A bare-bones HTTP server library with dynamic page capabilties
+
 use std::borrow;
 use std::fs;
 use std::io::prelude::*;
@@ -8,6 +10,11 @@ use std::thread;
 type Function = fn() -> String;
 
 
+/// Instanciates the HTTP server with specific details about address and TCP port.
+/// Details about web server root directory (default: local directory), debug mode
+/// (default: false) or standard page (default: index.html) can be adjusted after
+/// instanciated. Dynamic page functionality is implemented via DynamicPage and
+/// Anchor objects
 #[derive(Clone)]
 pub struct Server {
     ip_address: String,
@@ -18,12 +25,17 @@ pub struct Server {
     dynamic_pages: Vec<DynamicPage>,
 }
 
+/// Each instance of DynamicPage is associated with an unique URL, and can define multiple anchors.
+/// This way, multiple portions of the dynamic page can be served by the declared function.
 #[derive(Clone)]
 pub struct DynamicPage {
     pub url:     String,
     pub anchors: Vec<Anchor>,
 }
 
+/// Anchor defines a string from the html page (the marker), which will trigger the execution of a
+/// rust function declared by the library user. The function must return a String. The basic rule of
+/// execution is that the marker will be replaced by the String resulting of the function execution.
 #[derive(Clone)]
 #[derive(Debug)]
 pub struct Anchor {
@@ -34,6 +46,7 @@ pub struct Anchor {
 
 impl Server {
 
+    /// Creates an instance of the Serves with general defaults.
     pub fn new(ip_address: String, tcp_port: u32) -> Server {
 
         Server {
@@ -46,10 +59,13 @@ impl Server {
         }
     }
 
+    /// Sets debugging (lists the URL requested, the related page and HTTP result) on and off.
     pub fn debug(&mut self, debug: bool) {
         self.debug = debug;
     }
 
+    /// Sets a root directory for files to be served. The path presented must be a valid directory.
+    /// If the directory does not exist or if it is not a directory, an Err result will be returned.
     pub fn root_dir(&mut self, root_dir: path::PathBuf) -> Result<(), String> {
 
         if fs::metadata(&root_dir).is_ok() {
@@ -66,14 +82,18 @@ impl Server {
         }
     }
 
+    /// Changes the default page file name (default is index.html)
     pub fn std_page(&mut self, std_page: String) {
         self.std_page = std_page;
     }
 
+    /// Defines dynamic pages to be served by Hike using DynamicPage and Anchor structs.
     pub fn insert_dynamic_page(&mut self, dynamic_page: DynamicPage) {
         self.dynamic_pages.push(dynamic_page);
     }
 
+    /// Enables the Server instance to start serving static and dynamic pages according to the
+    /// parameters set.
     pub fn run(&self) {
 
         let address = format!("{}:{}", self.ip_address, self.tcp_port);
@@ -118,7 +138,6 @@ impl Server {
                                   .collect::<Vec<&DynamicPage>>().get(0) {
             None => (),
             Some(dynamic_page) => {
-                // if server.debug { eprintln!("{:?}", &dynamic_page); }
                 let mut string_file = borrow::Cow::from(String::from_utf8_lossy(&file_contents));
                 for anchor in &dynamic_page.anchors {
                 if server.debug { eprintln!(" {:?}", anchor); }
@@ -172,18 +191,21 @@ mod tests {
         let mut server = crate::Server::new("127.0.0.1".to_string(), 8080);
         server.debug(true);
 
-        let anchor = crate::Anchor {
-            marker: "<!-- [[ uptime_content ]] -->".to_string(),
-            function: uptime_command,
+        let anchor1 = crate::Anchor {
+            marker: "<!-- [ls] -->".to_string(),
+            function: ls_command,
         };
 
-        let anchor1 = anchor.clone();
         let dynamic_page1 = crate::DynamicPage {
             url: "/".to_string(),
             anchors: vec![anchor1],
         };
 
-        let anchor2 = anchor.clone();
+        let anchor2 = crate::Anchor {
+            marker: "<!-- [uptime] -->".to_string(),
+            function: uptime_command,
+        };
+
         let dynamic_page2 = crate::DynamicPage {
             url: "/dynamic.html".to_string(),
             anchors: vec![anchor2],
@@ -211,11 +233,24 @@ mod tests {
         server.run();
     }
 
+    /// This is an example function. Any "void" Rust function returning an String is valid.
     fn uptime_command() -> String {
 
         let output = process::Command::new("sh")
             .arg("-c")
             .arg("uptime")
+            .output()
+            .expect("failed to execute process");
+
+        String::from_utf8_lossy(&output.stdout).to_string()
+    }
+
+    /// This is another example function. Any "void" Rust function returning an String is valid.
+    fn ls_command() -> String {
+
+        let output = process::Command::new("sh")
+            .arg("-c")
+            .arg("ls -lh")
             .output()
             .expect("failed to execute process");
 
